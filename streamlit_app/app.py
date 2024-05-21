@@ -5,6 +5,7 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
 from langchain.llms import OpenAI
+from openai import OpenAIError
 
 from PIL import Image
 
@@ -14,12 +15,12 @@ import re
 
 avatar_icon = {"user": Image.open('streamlit_app/assets/chat1.jpg'), "assistant": Image.open('streamlit_app/assets/1.jpg')}
 
-movie_file_names = os.listdir('subtitle')
+movie_file_names = os.listdir('streamlit_app/subtitle')
 movie_names = [" ".join(x.replace(".srt", "").split(".")).strip() for x in movie_file_names]
 
 # main function to get subtitle corpus
 def get_subtitle_text_corpus(subtitle_file):
-    file_path = f"subtitle/{subtitle_file}"
+    file_path = f"streamlit_app/subtitle/{subtitle_file}"
     
     # Read file content
     with open(file_path, 'r', encoding='utf-8') as file:
@@ -153,7 +154,7 @@ def main():
         st.session_state["model_status"] = True
 
     # Set Header
-    st.header("Content Moderator AI - agent :books: :movies:")
+    st.header("Content Moderator AI - agent :books: ")
     st.text("Please choose a subtitle file from the sidebar to begin chatting.")
 
     # Side Bar:
@@ -170,6 +171,7 @@ def main():
         os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
         button_click = st.button("Begin Chat")
+
 
     # Display error banner when:
     ### API Key is missing and starting chat
@@ -199,34 +201,39 @@ def main():
         # get the text chunks
         text_chunks = get_text_chunks(raw_text)
         print(text_chunks)
-
-        # create vector store
-        vectorstore = get_vectorstore(st.session_state["embeddings"], text_chunks)
         
-        # Display message chat history
-        for message in st.session_state["messages"]:
-            with st.chat_message(message["role"], avatar=avatar_icon[message["role"]]):
-                st.markdown(message["content"])
+        try:
 
-        # Get user's question
-        if user_question := st.chat_input("What would you like to know about this movie?"):
-
-            st.session_state["messages"].append({"role":"user", "content":user_question})
-
-            response = get_response(st.session_state["chain_model"], vectorstore, user_question)
-            print(response)
-            st.session_state["messages"].append({"role":"assistant", "content":response})
-
-            st.chat_message("user", avatar=avatar_icon["user"]).markdown(user_question)
-
-            st.session_state["messages"].append({"role":"user", "content":user_question})
-
-            with st.chat_message("assistant", avatar=avatar_icon["assistant"]):
-                st.markdown(f"Echo: {response}")
-
-            st.session_state["messages"].append({"role":"assistant", "content":f"Echo: {response}"})
-
+            # create vector store
+            vectorstore = get_vectorstore(st.session_state["embeddings"], text_chunks)
             
+            # Display message chat history
+            for message in st.session_state["messages"]:
+                with st.chat_message(message["role"], avatar=avatar_icon[message["role"]]):
+                    st.markdown(message["content"])
+
+            # Get user's question
+            if user_question := st.chat_input("What would you like to know about this movie?"):
+
+                st.session_state["messages"].append({"role":"user", "content":user_question})
+
+                response = get_response(st.session_state["chain_model"], vectorstore, user_question)
+                print(response)
+                st.session_state["messages"].append({"role":"assistant", "content":response})
+
+                st.chat_message("user", avatar=avatar_icon["user"]).markdown(user_question)
+
+                st.session_state["messages"].append({"role":"user", "content":user_question})
+
+                with st.chat_message("assistant", avatar=avatar_icon["assistant"]):
+                    st.markdown(f"Echo: {response}")
+
+                st.session_state["messages"].append({"role":"assistant", "content":f"Echo: {response}"})
+        except OpenAIError as e:
+            st.error("Error : "+str(e))
+
+
+
 if __name__ == "__main__":
     main()            
 
