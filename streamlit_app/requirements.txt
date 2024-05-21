@@ -1,0 +1,6 @@
+langchain
+faiss-cpu
+tiktoken
+streamlit
+
+pydantic==1.10.11
